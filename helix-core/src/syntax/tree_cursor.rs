@@ -122,6 +122,49 @@ impl<'n> TreeCursor<'n> {
         }
     }
 
+    pub fn goto_first_named_child(&mut self) -> bool {
+        // Check if the current node's range is an exact injection layer range.
+        if let Some(layer_id) = self
+            .layer_id_of_byte_range(self.node().byte_range())
+            .filter(|&layer_id| layer_id != self.current)
+        {
+            // Switch to the child layer.
+            self.current = layer_id;
+            self.cursor = self.layers[self.current].tree().root_node();
+            true
+        } else if let Some(child) = self.cursor.named_child(0) {
+            // Otherwise descend in the current tree.
+            self.cursor = child;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Finds the first child node that is contained "inside" the given input
+    /// range, i.e. either start_new > start_old and end_new <= end old OR
+    /// start_new >= start_old and end_new < end_old
+    pub fn goto_first_contained_child(&'n mut self, range: &crate::Range, text: RopeSlice) -> bool {
+        self.first_contained_child(range, text).is_some()
+    }
+
+    /// Finds the first child node that is contained "inside" the given input
+    /// range, i.e. either start_new > start_old and end_new <= end old OR
+    /// start_new >= start_old and end_new < end_old
+    pub fn first_contained_child(
+        &'n mut self,
+        range: &crate::Range,
+        text: RopeSlice,
+    ) -> Option<Node<'n>> {
+        let from = text.char_to_byte(range.from());
+        let to = text.char_to_byte(range.to());
+
+        self.into_iter().find(|&node| {
+            (node.start_byte() > from && node.end_byte() <= to)
+                || (node.start_byte() >= from && node.end_byte() < to)
+        })
+    }
+
     pub fn goto_next_sibling(&mut self) -> bool {
         if let Some(sibling) = self.cursor.next_sibling() {
             self.cursor = sibling;
@@ -131,8 +174,26 @@ impl<'n> TreeCursor<'n> {
         }
     }
 
+    pub fn goto_next_named_sibling(&mut self) -> bool {
+        if let Some(sibling) = self.cursor.next_named_sibling() {
+            self.cursor = sibling;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn goto_prev_sibling(&mut self) -> bool {
         if let Some(sibling) = self.cursor.prev_sibling() {
+            self.cursor = sibling;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn goto_prev_named_sibling(&mut self) -> bool {
+        if let Some(sibling) = self.cursor.prev_named_sibling() {
             self.cursor = sibling;
             true
         } else {

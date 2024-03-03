@@ -86,6 +86,11 @@ use grep_searcher::{sinks, BinaryDetection, SearcherBuilder};
 use ignore::{DirEntry, WalkBuilder, WalkState};
 
 pub type OnKeyCallback = Box<dyn FnOnce(&mut Context, KeyEvent)>;
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum OnKeyCallbackKind {
+    PseudoPending,
+    Fallback,
+}
 
 pub struct Context<'a> {
     pub register: Option<char>,
@@ -93,7 +98,7 @@ pub struct Context<'a> {
     pub editor: &'a mut Editor,
 
     pub callback: Vec<crate::compositor::Callback>,
-    pub on_next_key_callback: Option<OnKeyCallback>,
+    pub on_next_key_callback: Option<(OnKeyCallback, OnKeyCallbackKind)>,
     pub jobs: &'a mut Jobs,
 }
 
@@ -119,7 +124,19 @@ impl<'a> Context<'a> {
         &mut self,
         on_next_key_callback: impl FnOnce(&mut Context, KeyEvent) + 'static,
     ) {
-        self.on_next_key_callback = Some(Box::new(on_next_key_callback));
+        self.on_next_key_callback = Some((
+            Box::new(on_next_key_callback),
+            OnKeyCallbackKind::PseudoPending,
+        ));
+    }
+
+    #[inline]
+    pub fn on_next_key_fallback(
+        &mut self,
+        on_next_key_callback: impl FnOnce(&mut Context, KeyEvent) + 'static,
+    ) {
+        self.on_next_key_callback =
+            Some((Box::new(on_next_key_callback), OnKeyCallbackKind::Fallback));
     }
 
     #[inline]

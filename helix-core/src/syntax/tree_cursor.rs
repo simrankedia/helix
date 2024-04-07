@@ -90,6 +90,19 @@ impl<'a> TreeCursor<'a> {
         true
     }
 
+    pub fn goto_parent_with<P>(&mut self, predicate: P) -> bool
+    where
+        P: Fn(&Node) -> bool,
+    {
+        while self.goto_parent() {
+            if predicate(&self.node()) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Finds the injection layer that has exactly the same range as the given `range`.
     fn layer_id_of_byte_range(&self, search_range: Range<usize>) -> Option<LayerId> {
         let start_idx = self

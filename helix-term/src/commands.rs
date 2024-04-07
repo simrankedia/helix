@@ -36,10 +36,9 @@ use helix_core::{
     syntax::{BlockCommentToken, LanguageServerFeature},
     text_annotations::{Overlay, TextAnnotations},
     textobject,
-    tree_sitter::Tree,
     unicode::width::UnicodeWidthChar,
     visual_offset_from_block, Deletion, LineEnding, Position, Range, Rope, RopeGraphemes,
-    RopeReader, RopeSlice, Selection, SmallVec, Tendril, Transaction,
+    RopeReader, RopeSlice, Selection, SmallVec, Syntax, Tendril, Transaction,
 };
 use helix_view::{
     document::{FormatterError, Mode, SCRATCH_BUFFER_NAME},
@@ -4980,14 +4979,14 @@ pub fn extend_parent_node_start(cx: &mut Context) {
 
 fn select_all_impl<F>(editor: &mut Editor, select_fn: F)
 where
-    F: Fn(&Tree, RopeSlice, Selection) -> Selection,
+    F: Fn(&Syntax, RopeSlice, Selection) -> Selection,
 {
     let (view, doc) = current!(editor);
 
     if let Some(syntax) = doc.syntax() {
         let text = doc.text().slice(..);
         let current_selection = doc.selection(view.id);
-        let selection = select_fn(syntax.tree(), text, current_selection.clone());
+        let selection = select_fn(syntax, text, current_selection.clone());
         doc.set_selection(view.id, selection);
     }
 }
@@ -5002,8 +5001,8 @@ fn select_all_siblings(cx: &mut Context) {
 
 fn select_all_children_in_selection(cx: &mut Context) {
     let motion = |editor: &mut Editor| {
-        select_all_impl(editor, |tree, text, selection| {
-            let all_children = object::select_all_children(tree, text, selection.clone());
+        select_all_impl(editor, |syntax, text, selection| {
+            let all_children = object::select_all_children(syntax, text, selection.clone());
 
             if selection.contains(&all_children) {
                 all_children
